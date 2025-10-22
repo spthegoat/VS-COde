@@ -35,29 +35,44 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initializeCamera() async {
     try {
+      if (cameras.isEmpty) {
+        debugPrint("No cameras found on device.");
+        return;
+      }
+
       controller = CameraController(
         cameras.first,
         ResolutionPreset.high,
         enableAudio: false,
       );
+
       await controller!.initialize();
 
-      // Lock exposure and white balance
+      // Get exposure offset range and set a middle value
+      final minOffset = await controller!.getMinExposureOffset();
+      final maxOffset = await controller!.getMaxExposureOffset();
+      final midOffset = (minOffset + maxOffset) / 2;
+
+      // Apply exposure and focus settings
       await Future.wait([
         controller!.setExposureMode(ExposureMode.locked),
         controller!.setFocusMode(FocusMode.locked),
+        controller!.setExposureOffset(midOffset),
       ]);
 
       setState(() {
         isCameraInitialized = true;
       });
+
+      debugPrint("Camera initialized successfully.");
+      debugPrint("Exposure offset set to $midOffset");
     } on CameraException catch (e) {
-      debugPrint("Camera error ${e.code} : ${e.description}");
+      debugPrint("Camera error ${e.code}: ${e.description}");
     }
   }
 
   Future<void> _captureSeries() async {
-    if (!isCameraInitialized || !controller!.value.isInitialized) return;
+    if (!isCameraInitialized || !(controller?.value.isInitialized ?? false)) return;
 
     try {
       for (int i = 0; i < 5; i++) {
